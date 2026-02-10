@@ -6,7 +6,7 @@
 
 O **Hanami** é uma API REST em Spring Boot. Ela processa CSVs de vendas. Ela calcula métricas e gera relatórios.
 
-O nome "Hanami" (花見) significa "observar as flores". Ele representa extrair insights dos dados.
+O nome "Hanami" (花見) significa "observar as flores".
 
 ### Quickstart (Docker)
 
