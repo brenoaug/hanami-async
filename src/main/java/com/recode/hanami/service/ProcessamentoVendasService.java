@@ -14,6 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 public class ProcessamentoVendasService {
@@ -50,6 +53,27 @@ public class ProcessamentoVendasService {
             Venda venda = converterParaVenda(dto, cliente, produto, vendedor);
             vendaRepository.save(venda);
         }
+    }
+
+    // Versão reativa: recebe um Flux de DTOs e realiza as operações de persistência
+    public Mono<Long> salvarDadosDoArquivo(Flux<DadosArquivoDTO> listaDtosFlux) {
+        return listaDtosFlux
+                .flatMap(dto -> Mono.fromCallable(() -> {
+                    Cliente cliente = converterParaCliente(dto);
+                    clienteRepository.save(cliente);
+
+                    Produto produto = converterParaProduto(dto);
+                    produtoRepository.save(produto);
+
+                    Vendedor vendedor = converterParaVendedor(dto);
+                    vendedorRepository.save(vendedor);
+
+                    Venda venda = converterParaVenda(dto, cliente, produto, vendedor);
+                    vendaRepository.save(venda);
+
+                    return 1L;
+                }).subscribeOn(Schedulers.boundedElastic()))
+                .reduce(0L, Long::sum);
     }
 
     private Cliente converterParaCliente(DadosArquivoDTO dto) {
