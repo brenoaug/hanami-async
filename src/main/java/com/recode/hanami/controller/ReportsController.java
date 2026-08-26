@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import reactor.core.publisher.Mono;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -50,15 +51,14 @@ public class ReportsController implements ReportsControllerOpenApi {
 
     @GetMapping("/financial-metrics")
     @Override
-    public ResponseEntity<Map<String, Double>> getFinancialMetrics() {
+    public Mono<ResponseEntity<Map<String, Double>>> getFinancialMetrics() {
         logger.debug("Solicitação de métricas financeiras");
-        Map<String, Double> metrics = relatorioService.gerarMetricasFinanceirasMap();
-        return ResponseEntity.ok(metrics);
+        return relatorioService.gerarMetricasFinanceirasMap().map(ResponseEntity::ok);
     }
 
     @GetMapping("/product-analysis")
     @Override
-    public ResponseEntity<List<Map<String, Object>>> analisarLucros(@RequestParam(value = "sort_by", required = false, defaultValue = "nome") String sortBy) {
+    public Mono<ResponseEntity<List<Map<String, Object>>>> analisarLucros(@RequestParam(value = "sort_by", required = false, defaultValue = "nome") String sortBy) {
         logger.debug("Solicitação de análise de produtos com ordenação: {}", sortBy);
         String normalizedSortBy = sortByValidator.normalize(sortBy);
         boolean isValid = sortByValidator.isValid(sortBy);
@@ -66,66 +66,61 @@ public class ReportsController implements ReportsControllerOpenApi {
             logger.warn("Parâmetro de ordenação inválido: {}. Usando padrão: {}", sortBy, sortByValidator.getDefaultSort());
             normalizedSortBy = sortByValidator.getDefaultSort();
         }
-        List<Map<String, Object>> relatorio = relatorioService.gerarAnaliseProdutosOrdenada(normalizedSortBy);
-        return ResponseEntity.ok(relatorio);
+        return relatorioService.gerarAnaliseProdutosOrdenada(normalizedSortBy).map(ResponseEntity::ok);
     }
 
     @GetMapping("/sales-summary")
     @Override
-    public ResponseEntity<Map<String, Object>> resumoFinanceiro(
+    public Mono<ResponseEntity<Map<String, Object>>> resumoFinanceiro(
             @RequestParam(value = "start_date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "end_date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         logger.debug("Solicitação de resumo de vendas - Período: {} a {}", startDate, endDate);
-        Map<String, Object> resumo = relatorioService.gerarResumoVendasMap(startDate, endDate);
-        logger.info("Resumo de vendas gerado: {} transações", resumo.get("numero_total_vendas"));
-        return ResponseEntity.ok(resumo);
+        return relatorioService.gerarResumoVendasMap(startDate, endDate)
+                .doOnNext(resumo -> logger.info("Resumo de vendas gerado: {} transações", resumo.get("numero_total_vendas")))
+                .map(ResponseEntity::ok);
     }
 
     @GetMapping("/regional-performance")
     @Override
-    public ResponseEntity<Map<String, MetricasRegiaoDTO>> getRegionalPerformance(
+    public Mono<ResponseEntity<Map<String, MetricasRegiaoDTO>>> getRegionalPerformance(
             @RequestParam(value = "estado", required = false) String estado) {
         logger.debug("Solicitação de desempenho por região - Estado: {}", estado);
 
-        List<Venda> vendas;
-        Map<String, MetricasRegiaoDTO> metricas;
-
         if (estado != null && !estado.trim().isEmpty()) {
-            vendas = vendaRepository.findByClienteEstadoBlocking(estado.trim());
-            metricas = calculosDemografiaRegiao.calcularMetricasPorEstado(vendas);
-            logger.info("Desempenho por estado calculado: {} estado(s) - Filtro: {}",
-                        metricas.size(), estado.toUpperCase().trim());
+            return vendaRepository.findByClienteEstado(estado.trim()).collectList()
+                    .map(vendas -> calculosDemografiaRegiao.calcularMetricasPorEstado(vendas))
+                    .doOnNext(metricas -> logger.info("Desempenho por estado calculado: {} estado(s) - Filtro: {}", metricas.size(), estado.toUpperCase().trim()))
+                    .map(ResponseEntity::ok);
         } else {
-            vendas = vendaRepository.findAllBlocking();
-            metricas = calculosDemografiaRegiao.calcularMetricasPorRegiao(vendas);
-            logger.info("Desempenho regional calculado: {} regiões", metricas.size());
+            return vendaRepository.findAll().collectList()
+                    .map(vendas -> calculosDemografiaRegiao.calcularMetricasPorRegiao(vendas))
+                    .doOnNext(metricas -> logger.info("Desempenho regional calculado: {} regiões", metricas.size()))
+                    .map(ResponseEntity::ok);
         }
-
-        return ResponseEntity.ok(metricas);
     }
 
     @GetMapping("/customer-profile")
     @Override
-    public ResponseEntity<DistribuicaoClientesDTO> getCustomerProfile() {
+    public Mono<ResponseEntity<DistribuicaoClientesDTO>> getCustomerProfile() {
         logger.debug("Solicitação de perfil demográfico");
-        List<Venda> vendas = vendaRepository.findAllBlocking();
-        DistribuicaoClientesDTO distribuicao = calculosDemografiaRegiao.calcularDistribuicaoClientes(vendas);
-        logger.info("Perfil demográfico calculado");
-        return ResponseEntity.ok(distribuicao);
+        return vendaRepository.findAll().collectList()
+                .map(vendas -> calculosDemografiaRegiao.calcularDistribuicaoClientes(vendas))
+                .doOnNext(d -> logger.info("Perfil demográfico calculado"))
+                .map(ResponseEntity::ok);
     }
 
     @GetMapping("/download")
     @Override
-    public ResponseEntity<byte[]> downloadRelatorio(@RequestParam(value = "format") String format) {
+    public Mono<ResponseEntity<byte[]>> downloadRelatorio(@RequestParam(value = "format") String format) {
         logger.info("Download de relatório solicitado: formato={}", format);
         formatoRelatorioValidator.validate(format);
-        RelatorioCompletoDTO relatorio = relatorioService.gerarRelatorioCompleto();
-
-        byte[] conteudo = format.equalsIgnoreCase("json")
-            ? relatorioService.gerarRelatorioJsonBytes(relatorio)
-            : relatorioService.gerarRelatorioPdfBytes(relatorio);
-
-        logger.info("Relatório {} gerado com sucesso - {} bytes", format.toUpperCase(), conteudo.length);
-        return DownloadArquivoUtil.buildDownloadResponse(conteudo, format);
+        return relatorioService.gerarRelatorioCompleto()
+                .map(relatorio -> {
+                    byte[] conteudo = format.equalsIgnoreCase("json")
+                            ? relatorioService.gerarRelatorioJsonBytes(relatorio)
+                            : relatorioService.gerarRelatorioPdfBytes(relatorio);
+                    logger.info("Relatório {} gerado com sucesso - {} bytes", format.toUpperCase(), conteudo.length);
+                    return DownloadArquivoUtil.buildDownloadResponse(conteudo, format);
+                });
     }
 }

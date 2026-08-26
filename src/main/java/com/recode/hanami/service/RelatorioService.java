@@ -8,6 +8,7 @@ import com.recode.hanami.repository.VendaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -56,109 +57,99 @@ public class RelatorioService {
         }
     }
 
-    public RelatorioCompletoDTO gerarRelatorioCompleto() {
+    public Mono<RelatorioCompletoDTO> gerarRelatorioCompleto() {
         logger.info("Gerando relatório completo");
-
-        List<Venda> todasVendas = vendaRepository.findAllBlocking();
-
-        List<Venda> vendasComRelacoes = todasVendas;
-
-        List<AnaliseProdutoDTO> analiseProdutos = gerarAnaliseProdutos(vendasComRelacoes);
-
-        ResumoVendasDTO resumoVendas = gerarResumoVendas(todasVendas);
-
-        Map<String, MetricasRegiaoDTO> desempenhoRegional = calculosDemografiaRegiao.calcularMetricasPorRegiao(todasVendas);
-
-        return new RelatorioCompletoDTO(
-                LocalDateTime.now(),
-                gerarMetricasFinanceiras(todasVendas),
-                analiseProdutos,
-                resumoVendas,
-                desempenhoRegional
-        );
+        return vendaRepository.findAll().collectList().map(todasVendas -> {
+            List<Venda> vendasComRelacoes = todasVendas;
+            List<AnaliseProdutoDTO> analiseProdutos = gerarAnaliseProdutos(vendasComRelacoes);
+            ResumoVendasDTO resumoVendas = gerarResumoVendas(todasVendas);
+            Map<String, MetricasRegiaoDTO> desempenhoRegional = calculosDemografiaRegiao.calcularMetricasPorRegiao(todasVendas);
+            return new RelatorioCompletoDTO(LocalDateTime.now(), gerarMetricasFinanceiras(todasVendas), analiseProdutos, resumoVendas, desempenhoRegional);
+        });
     }
 
-    public Map<String, Double> gerarMetricasFinanceirasMap() {
+    public Mono<Map<String, Double>> gerarMetricasFinanceirasMap() {
         logger.debug("Gerando métricas financeiras");
-        List<Venda> vendas = vendaRepository.findAllBlocking();
+        return vendaRepository.findAll().collectList().map(vendas -> {
+            Double receitaLiquida = calculadoraService.calcularTotalVendas(vendas);
+            Double custoTotal = calculadoraService.calcularCustoTotalGeral(vendas);
+            Double lucroBruto = calculadoraService.calcularLucroBrutoGeral(vendas);
 
-        Double receitaLiquida = calculadoraService.calcularTotalVendas(vendas);
-        Double custoTotal = calculadoraService.calcularCustoTotalGeral(vendas);
-        Double lucroBruto = calculadoraService.calcularLucroBrutoGeral(vendas);
+            Map<String, Double> metrics = new LinkedHashMap<>();
+            metrics.put("receita_liquida", receitaLiquida);
+            metrics.put("custo_total", custoTotal);
+            metrics.put("lucro_bruto", lucroBruto);
 
-        Map<String, Double> metrics = new LinkedHashMap<>();
-        metrics.put("receita_liquida", receitaLiquida);
-        metrics.put("custo_total", custoTotal);
-        metrics.put("lucro_bruto", lucroBruto);
-
-        return metrics;
+            return metrics;
+        });
     }
 
-    public List<Map<String, Object>> gerarAnaliseProdutosOrdenada(String sortBy) {
+    public Mono<List<Map<String, Object>>> gerarAnaliseProdutosOrdenada(String sortBy) {
         logger.debug("Gerando análise de produtos ordenada por: {}", sortBy);
-        List<Venda> vendasComRelacoes = vendaRepository.findAllBlocking();
+        return vendaRepository.findAll().collectList().map(vendasComRelacoes -> {
+            Map<String, Map<String, Object>> produtosMap = new LinkedHashMap<>();
 
-        Map<String, Map<String, Object>> produtosMap = new LinkedHashMap<>();
+            for (Venda venda : vendasComRelacoes) {
+                String nomeProduto = "Produto_" + venda.getProdutoId();
+                Integer quantidade = venda.getQuantidade() != null ? venda.getQuantidade() : 0;
+                Double receita = venda.getValorFinal() != null ? venda.getValorFinal() : 0.0;
 
-        for (Venda venda : vendasComRelacoes) {
-            String nomeProduto = "Produto_" + venda.getProdutoId();
-            Integer quantidade = venda.getQuantidade() != null ? venda.getQuantidade() : 0;
-            Double receita = venda.getValorFinal() != null ? venda.getValorFinal() : 0.0;
+                if (produtosMap.containsKey(nomeProduto)) {
+                    Map<String, Object> produtoExistente = produtosMap.get(nomeProduto);
+                    Integer qtdAtual = (Integer) produtoExistente.get("quantidade_vendida");
+                    Double totalAtual = (Double) produtoExistente.get("total_arrecadado");
 
-            if (produtosMap.containsKey(nomeProduto)) {
-                Map<String, Object> produtoExistente = produtosMap.get(nomeProduto);
-                Integer qtdAtual = (Integer) produtoExistente.get("quantidade_vendida");
-                Double totalAtual = (Double) produtoExistente.get("total_arrecadado");
+                    produtoExistente.put("quantidade_vendida", qtdAtual + quantidade);
+                    produtoExistente.put("total_arrecadado", calculadoraService.arredondar(totalAtual + receita));
+                } else {
+                    Map<String, Object> novoProduto = new LinkedHashMap<>();
+                    novoProduto.put("nome_produto", nomeProduto);
+                    novoProduto.put("quantidade_vendida", quantidade);
+                    novoProduto.put("total_arrecadado", calculadoraService.arredondar(receita));
 
-                produtoExistente.put("quantidade_vendida", qtdAtual + quantidade);
-                produtoExistente.put("total_arrecadado", calculadoraService.arredondar(totalAtual + receita));
-            } else {
-                Map<String, Object> novoProduto = new LinkedHashMap<>();
-                novoProduto.put("nome_produto", nomeProduto);
-                novoProduto.put("quantidade_vendida", quantidade);
-                novoProduto.put("total_arrecadado", calculadoraService.arredondar(receita));
-
-                produtosMap.put(nomeProduto, novoProduto);
+                    produtosMap.put(nomeProduto, novoProduto);
+                }
             }
-        }
 
-        List<Map<String, Object>> relatorio = new ArrayList<>(produtosMap.values());
-        aplicarOrdenacao(relatorio, sortBy);
+            List<Map<String, Object>> relatorio = new ArrayList<>(produtosMap.values());
+            aplicarOrdenacao(relatorio, sortBy);
 
-        return relatorio;
+            return relatorio;
+        });
     }
 
-    public Map<String, Object> gerarResumoVendasMap() {
+    public Mono<Map<String, Object>> gerarResumoVendasMap() {
         return gerarResumoVendasMap(null, null);
     }
 
-    public Map<String, Object> gerarResumoVendasMap(LocalDate startDate, LocalDate endDate) {
+    public Mono<Map<String, Object>> gerarResumoVendasMap(LocalDate startDate, LocalDate endDate) {
         logger.debug("Gerando resumo de vendas - Período: {} a {}", startDate, endDate);
 
-        List<Venda> vendas;
+        Mono<List<Venda>> vendasMono;
         if (startDate != null && endDate != null) {
-            vendas = vendaRepository.findByDataVendaBetweenBlocking(startDate, endDate);
-            logger.info("Filtrando vendas por período: {} transações encontradas", vendas.size());
+            vendasMono = vendaRepository.findByDataVendaBetween(startDate, endDate).collectList().doOnNext(list -> logger.info("Filtrando vendas por período: {} transações encontradas", list.size()));
         } else {
-            vendas = vendaRepository.findAllBlocking();
+            vendasMono = vendaRepository.findAll().collectList();
         }
 
-        Integer numeroTotalVendas = calculadoraService.calcularNumeroTransacoes(vendas);
-        Double valorMedioPorTransacao = calculadoraService.calcularMediaPorTransacao(vendas);
-        String formaPagamentoMaisUtilizada = calculadoraService.calcularFormaPagamentoMaisUtilizada(vendas);
-        String formaPagamentoMenosUtilizada = calculadoraService.calcularFormaPagamentoMenosUtilizada(vendas);
-        String canalVendasMaisUtilizado = calculadoraService.calcularCanalVendasMaisUtilizado(vendas);
-        String canalVendasMenosUtilizado = calculadoraService.calcularCanalVendasMenosUtilizado(vendas);
+        return vendasMono.map(vendas -> {
+            Integer numeroTotalVendas = calculadoraService.calcularNumeroTransacoes(vendas);
+            Double valorMedioPorTransacao = calculadoraService.calcularMediaPorTransacao(vendas);
+            String formaPagamentoMaisUtilizada = calculadoraService.calcularFormaPagamentoMaisUtilizada(vendas);
+            String formaPagamentoMenosUtilizada = calculadoraService.calcularFormaPagamentoMenosUtilizada(vendas);
+            String canalVendasMaisUtilizado = calculadoraService.calcularCanalVendasMaisUtilizado(vendas);
+            String canalVendasMenosUtilizado = calculadoraService.calcularCanalVendasMenosUtilizado(vendas);
 
-        Map<String, Object> resumo = new LinkedHashMap<>();
-        resumo.put("numero_total_vendas", numeroTotalVendas);
-        resumo.put("valor_medio_por_transacao", valorMedioPorTransacao);
-        resumo.put("forma_pagamento_mais_utilizada", formaPagamentoMaisUtilizada);
-        resumo.put("forma_pagamento_menos_utilizada", formaPagamentoMenosUtilizada);
-        resumo.put("canal_vendas_mais_utilizado", canalVendasMaisUtilizado);
-        resumo.put("canal_vendas_menos_utilizado", canalVendasMenosUtilizado);
+            Map<String, Object> resumo = new LinkedHashMap<>();
+            resumo.put("numero_total_vendas", numeroTotalVendas);
+            resumo.put("valor_medio_por_transacao", valorMedioPorTransacao);
+            resumo.put("forma_pagamento_mais_utilizada", formaPagamentoMaisUtilizada);
+            resumo.put("forma_pagamento_menos_utilizada", formaPagamentoMenosUtilizada);
+            resumo.put("canal_vendas_mais_utilizado", canalVendasMaisUtilizado);
+            resumo.put("canal_vendas_menos_utilizado", canalVendasMenosUtilizado);
 
-        return resumo;
+            return resumo;
+        });
     }
 
     private void aplicarOrdenacao(List<Map<String, Object>> relatorio, String sortBy) {

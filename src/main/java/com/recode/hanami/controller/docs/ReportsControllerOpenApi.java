@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -48,7 +49,7 @@ public interface ReportsControllerOpenApi {
                     )
             )
     })
-    ResponseEntity<Map<String, Double>> getFinancialMetrics();
+    Mono<ResponseEntity<Map<String, Double>>> getFinancialMetrics();
 
     @Operation(
             summary = "Análise detalhada por produto",
@@ -89,7 +90,7 @@ public interface ReportsControllerOpenApi {
                     )
             )
     })
-    ResponseEntity<List<Map<String, Object>>> analisarLucros(
+    Mono<ResponseEntity<List<Map<String, Object>>>> analisarLucros(
             @Parameter(
                     description = """
                             Critério de ordenação dos resultados. **Opções disponíveis:**
@@ -136,7 +137,7 @@ public interface ReportsControllerOpenApi {
                     )
             )
     })
-    ResponseEntity<Map<String, Object>> resumoFinanceiro(
+    Mono<ResponseEntity<Map<String, Object>>> resumoFinanceiro(
             @Parameter(
                     description = """
                             Data inicial do período para filtrar as vendas (formato: YYYY-MM-DD).
@@ -178,7 +179,7 @@ public interface ReportsControllerOpenApi {
                     description = "Métricas por região calculadas com sucesso"
             )
     })
-    ResponseEntity<Map<String, MetricasRegiaoDTO>> getRegionalPerformance(
+    Mono<ResponseEntity<Map<String, MetricasRegiaoDTO>>> getRegionalPerformance(
             @Parameter(
                     description = """
                             Sigla do estado (UF) para filtrar os resultados.
@@ -202,7 +203,7 @@ public interface ReportsControllerOpenApi {
                     description = "Perfil demográfico calculado com sucesso"
             )
     })
-    ResponseEntity<DistribuicaoClientesDTO> getCustomerProfile();
+    Mono<ResponseEntity<DistribuicaoClientesDTO>> getCustomerProfile();
 
     @Operation(
             summary = "Download de relatório completo",
@@ -219,7 +220,7 @@ public interface ReportsControllerOpenApi {
             @ApiResponse(responseCode = "400", description = "Formato inválido"),
             @ApiResponse(responseCode = "500", description = "Erro ao gerar relatório")
     })
-    ResponseEntity<byte[]> downloadRelatorio(
+    Mono<ResponseEntity<byte[]>> downloadRelatorio(
             @Parameter(
                     description = "Formato do relatório: 'json' ou 'pdf'",
                     example = "pdf",

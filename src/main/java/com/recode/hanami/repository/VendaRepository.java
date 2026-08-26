@@ -33,18 +33,5 @@ public interface VendaRepository extends R2dbcRepository<Venda, String> {
         """)
     Flux<Venda> findByDataVendaBetween(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
-    @Deprecated(since = "Fase2", forRemoval = true)
-    default List<Venda> findAllBlocking() {
-        return findAll().collectList().block();
-    }
-
-    @Deprecated(since = "Fase2", forRemoval = true)
-    default List<Venda> findByClienteEstadoBlocking(String estado) {
-        return findByClienteEstado(estado).collectList().block();
-    }
-
-    @Deprecated(since = "Fase2", forRemoval = true)
-    default List<Venda> findByDataVendaBetweenBlocking(LocalDate startDate, LocalDate endDate) {
-        return findByDataVendaBetween(startDate, endDate).collectList().block();
-    }
+    // blocking helper methods removed — use reactive Flux/Mono variants instead
 }
