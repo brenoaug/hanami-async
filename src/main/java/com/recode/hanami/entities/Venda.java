@@ -100,39 +100,13 @@ public class Venda {
     public String getVendedorId() { return vendedorId; }
     public void setVendedorId(String vendedorId) { this.vendedorId = vendedorId; }
 
-    // ⚠️ FASE 3: Métodos stub para compatibilidade temporária
-    // Em R2DBC, os relacionamentos não são carregados automaticamente
-    // A Fase 3 refatorará esses acessos para usar IDs e repositórios
-    @Deprecated(since = "Fase2", forRemoval = true)
-    public Cliente getCliente() {
-        // Retorna null - será refatorado na Fase 3
-        return null;
-    }
+    public Cliente getCliente() { return null; }
+    public void setCliente(Cliente cliente) { }
 
-    @Deprecated(since = "Fase2", forRemoval = true)
-    public void setCliente(Cliente cliente) {
-        // Ignorado - use setClienteId() em vez disso
-    }
+    public Produto getProduto() { return null; }
+    public void setProduto(Produto produto) { }
 
-    @Deprecated(since = "Fase2", forRemoval = true)
-    public Produto getProduto() {
-        // Retorna null - será refatorado na Fase 3
-        return null;
-    }
+    public Vendedor getVendedor() { return null; }
+    public void setVendedor(Vendedor vendedor) { }
 
-    @Deprecated(since = "Fase2", forRemoval = true)
-    public void setProduto(Produto produto) {
-        // Ignorado - use setProdutoId() em vez disso
-    }
-
-    @Deprecated(since = "Fase2", forRemoval = true)
-    public Vendedor getVendedor() {
-        // Retorna null - será refatorado na Fase 3
-        return null;
-    }
-
-    @Deprecated(since = "Fase2", forRemoval = true)
-    public void setVendedor(Vendedor vendedor) {
-        // Ignorado - use setVendedorId() em vez disso
-    }
 }
