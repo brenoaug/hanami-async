@@ -1,33 +1,32 @@
 package com.recode.hanami.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
 @Table(name = "clientes")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Cliente {
 
     @Id
-    @Column(name = "cliente_id")
+    @Column("cliente_id")
     private String id;
 
-    @Column(name = "nome_cliente")
+    @Column("nome_cliente")
     private String nomeCliente;
 
-    @Column(name = "idade_cliente")
+    @Column("idade_cliente")
     private Integer idadeCliente;
 
-    @Column(name = "genero_cliente", length = 10)
+    @Column("genero_cliente")
     private String generoCliente;
 
-    @Column(name = "cidade_cliente")
+    @Column("cidade_cliente")
     private String cidadeCliente;
 
-    @Column(name = "estado_cliente", length = 2)
+    @Column("estado_cliente")
     private String estadoCliente;
 
-    @Column(name = "renda_estimada")
+    @Column("renda_estimada")
     private double rendaEstimada;
 
     public Cliente() {}

@@ -1,33 +1,32 @@
 package com.recode.hanami.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
 @Table(name = "produtos")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Produto {
 
     @Id
-    @Column(name = "produto_id")
+    @Column("produto_id")
     private String id;
 
-    @Column(name = "nome_produto")
+    @Column("nome_produto")
     private String nomeProduto;
 
-    @Column(name = "categoria")
+    @Column("categoria")
     private String categoria;
 
-    @Column(name = "marca")
+    @Column("marca")
     private String marca;
 
-    @Column(name = "preco_unitario")
+    @Column("preco_unitario")
     private Double precoUnitario;
 
-    @Column(name = "quantidade")
+    @Column("quantidade")
     private Integer quantidade;
 
-    @Column(name = "margem_lucro")
+    @Column("margem_lucro")
     private Double margemLucro;
 
     public Produto() {}

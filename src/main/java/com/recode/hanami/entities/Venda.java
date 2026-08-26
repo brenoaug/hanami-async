@@ -1,60 +1,56 @@
 package com.recode.hanami.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 import java.time.LocalDate;
 
-@Entity
 @Table(name = "vendas")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Venda {
 
     @Id
-    @Column(name = "id_transacao")
+    @Column("id_transacao")
     private String id;
 
-    @Column(name = "data_venda")
+    @Column("data_venda")
     private LocalDate dataVenda;
 
-    @Column(name = "valor_final")
+    @Column("valor_final")
     private Double valorFinal;
 
-    @Column(name = "subtotal")
+    @Column("subtotal")
     private Double subtotal;
 
-    @Column(name = "desconto_percent")
+    @Column("desconto_percent")
     private Double descontoPercent;
 
-    @Column(name = "canal_venda")
+    @Column("canal_venda")
     private String canalVenda;
 
-    @Column(name = "forma_pagamento")
+    @Column("forma_pagamento")
     private String formaPagamento;
 
-
-    @Column(name = "quantidade")
+    @Column("quantidade")
     private Integer quantidade;
 
-    @Column(name = "regiao")
+    @Column("regiao")
     private String regiao;
 
-    @Column(name = "status_entrega")
+    @Column("status_entrega")
     private String statusEntrega;
 
-    @Column(name = "tempo_entrega_dias")
+    @Column("tempo_entrega_dias")
     private Integer tempoEntregaDias;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cliente_id")
-    private Cliente cliente;
+    // IDs dos relacionamentos (sem objetos decorados)
+    @Column("cliente_id")
+    private String clienteId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "produto_id")
-    private Produto produto;
+    @Column("produto_id")
+    private String produtoId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vendedor_id")
-    private Vendedor vendedor;
+    @Column("vendedor_id")
+    private String vendedorId;
 
     public Venda() {
     }
@@ -95,12 +91,48 @@ public class Venda {
     public Integer getTempoEntregaDias() { return tempoEntregaDias; }
     public void setTempoEntregaDias(Integer tempoEntregaDias) { this.tempoEntregaDias = tempoEntregaDias; }
 
-    public Cliente getCliente() { return cliente; }
-    public void setCliente(Cliente cliente) { this.cliente = cliente; }
+    public String getClienteId() { return clienteId; }
+    public void setClienteId(String clienteId) { this.clienteId = clienteId; }
 
-    public Produto getProduto() { return produto; }
-    public void setProduto(Produto produto) { this.produto = produto; }
+    public String getProdutoId() { return produtoId; }
+    public void setProdutoId(String produtoId) { this.produtoId = produtoId; }
 
-    public Vendedor getVendedor() { return vendedor; }
-    public void setVendedor(Vendedor vendedor) { this.vendedor = vendedor; }
+    public String getVendedorId() { return vendedorId; }
+    public void setVendedorId(String vendedorId) { this.vendedorId = vendedorId; }
+
+    // ⚠️ FASE 3: Métodos stub para compatibilidade temporária
+    // Em R2DBC, os relacionamentos não são carregados automaticamente
+    // A Fase 3 refatorará esses acessos para usar IDs e repositórios
+    @Deprecated(since = "Fase2", forRemoval = true)
+    public Cliente getCliente() {
+        // Retorna null - será refatorado na Fase 3
+        return null;
+    }
+
+    @Deprecated(since = "Fase2", forRemoval = true)
+    public void setCliente(Cliente cliente) {
+        // Ignorado - use setClienteId() em vez disso
+    }
+
+    @Deprecated(since = "Fase2", forRemoval = true)
+    public Produto getProduto() {
+        // Retorna null - será refatorado na Fase 3
+        return null;
+    }
+
+    @Deprecated(since = "Fase2", forRemoval = true)
+    public void setProduto(Produto produto) {
+        // Ignorado - use setProdutoId() em vez disso
+    }
+
+    @Deprecated(since = "Fase2", forRemoval = true)
+    public Vendedor getVendedor() {
+        // Retorna null - será refatorado na Fase 3
+        return null;
+    }
+
+    @Deprecated(since = "Fase2", forRemoval = true)
+    public void setVendedor(Vendedor vendedor) {
+        // Ignorado - use setVendedorId() em vez disso
+    }
 }

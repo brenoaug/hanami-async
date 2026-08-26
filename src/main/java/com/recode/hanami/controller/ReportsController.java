@@ -91,12 +91,12 @@ public class ReportsController implements ReportsControllerOpenApi {
         Map<String, MetricasRegiaoDTO> metricas;
 
         if (estado != null && !estado.trim().isEmpty()) {
-            vendas = vendaRepository.findByClienteEstado(estado.trim());
+            vendas = vendaRepository.findByClienteEstadoBlocking(estado.trim());
             metricas = calculosDemografiaRegiao.calcularMetricasPorEstado(vendas);
             logger.info("Desempenho por estado calculado: {} estado(s) - Filtro: {}",
                         metricas.size(), estado.toUpperCase().trim());
         } else {
-            vendas = vendaRepository.findAll();
+            vendas = vendaRepository.findAllBlocking();
             metricas = calculosDemografiaRegiao.calcularMetricasPorRegiao(vendas);
             logger.info("Desempenho regional calculado: {} regiões", metricas.size());
         }
@@ -108,7 +108,7 @@ public class ReportsController implements ReportsControllerOpenApi {
     @Override
     public ResponseEntity<DistribuicaoClientesDTO> getCustomerProfile() {
         logger.debug("Solicitação de perfil demográfico");
-        List<Venda> vendas = vendaRepository.findAll();
+        List<Venda> vendas = vendaRepository.findAllBlocking();
         DistribuicaoClientesDTO distribuicao = calculosDemografiaRegiao.calcularDistribuicaoClientes(vendas);
         logger.info("Perfil demográfico calculado");
         return ResponseEntity.ok(distribuicao);

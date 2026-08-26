@@ -1,9 +1,9 @@
 package com.recode.hanami.repository;
 
 import com.recode.hanami.entities.Produto;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ProdutoRepository extends JpaRepository<Produto, String> {
+public interface ProdutoRepository extends R2dbcRepository<Produto, String> {
 }

@@ -59,15 +59,13 @@ public class RelatorioService {
     public RelatorioCompletoDTO gerarRelatorioCompleto() {
         logger.info("Gerando relatório completo");
 
-        List<Venda> todasVendas = vendaRepository.findAll();
-        List<Venda> vendasComRelacoes = vendaRepository.findAllWithRelations();
+        List<Venda> todasVendas = vendaRepository.findAllBlocking();
 
+        List<Venda> vendasComRelacoes = todasVendas;
 
         List<AnaliseProdutoDTO> analiseProdutos = gerarAnaliseProdutos(vendasComRelacoes);
 
-
         ResumoVendasDTO resumoVendas = gerarResumoVendas(todasVendas);
-
 
         Map<String, MetricasRegiaoDTO> desempenhoRegional = calculosDemografiaRegiao.calcularMetricasPorRegiao(todasVendas);
 
@@ -82,7 +80,7 @@ public class RelatorioService {
 
     public Map<String, Double> gerarMetricasFinanceirasMap() {
         logger.debug("Gerando métricas financeiras");
-        List<Venda> vendas = vendaRepository.findAll();
+        List<Venda> vendas = vendaRepository.findAllBlocking();
 
         Double receitaLiquida = calculadoraService.calcularTotalVendas(vendas);
         Double custoTotal = calculadoraService.calcularCustoTotalGeral(vendas);
@@ -98,12 +96,12 @@ public class RelatorioService {
 
     public List<Map<String, Object>> gerarAnaliseProdutosOrdenada(String sortBy) {
         logger.debug("Gerando análise de produtos ordenada por: {}", sortBy);
-        List<Venda> vendasComRelacoes = vendaRepository.findAllWithRelations();
+        List<Venda> vendasComRelacoes = vendaRepository.findAllBlocking();
 
         Map<String, Map<String, Object>> produtosMap = new LinkedHashMap<>();
 
         for (Venda venda : vendasComRelacoes) {
-            String nomeProduto = venda.getProduto().getNomeProduto();
+            String nomeProduto = "Produto_" + venda.getProdutoId();
             Integer quantidade = venda.getQuantidade() != null ? venda.getQuantidade() : 0;
             Double receita = venda.getValorFinal() != null ? venda.getValorFinal() : 0.0;
 
@@ -139,10 +137,10 @@ public class RelatorioService {
 
         List<Venda> vendas;
         if (startDate != null && endDate != null) {
-            vendas = vendaRepository.findByDataVendaBetween(startDate, endDate);
+            vendas = vendaRepository.findByDataVendaBetweenBlocking(startDate, endDate);
             logger.info("Filtrando vendas por período: {} transações encontradas", vendas.size());
         } else {
-            vendas = vendaRepository.findAll();
+            vendas = vendaRepository.findAllBlocking();
         }
 
         Integer numeroTotalVendas = calculadoraService.calcularNumeroTransacoes(vendas);
@@ -191,7 +189,7 @@ public class RelatorioService {
         Map<String, Map<String, Object>> produtosMap = new LinkedHashMap<>();
 
         for (Venda venda : vendasComRelacoes) {
-            String nomeProduto = venda.getProduto().getNomeProduto();
+            String nomeProduto = "Produto_" + venda.getProdutoId();
             Integer quantidade = venda.getQuantidade() != null ? venda.getQuantidade() : 0;
             Double receita = venda.getValorFinal() != null ? venda.getValorFinal() : 0.0;
 

@@ -11,9 +11,7 @@ import com.recode.hanami.repository.ProdutoRepository;
 import com.recode.hanami.repository.VendaRepository;
 import com.recode.hanami.repository.VendedorRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -36,44 +34,20 @@ public class ProcessamentoVendasService {
         this.vendaRepository = vendaRepository;
     }
 
-    @Transactional
-    public void salvarDadosDoArquivo(List<DadosArquivoDTO> listaDtos) {
-
-        for (DadosArquivoDTO dto : listaDtos) {
-
-            Cliente cliente = converterParaCliente(dto);
-            clienteRepository.save(cliente);
-
-            Produto produto = converterParaProduto(dto);
-            produtoRepository.save(produto);
-
-            Vendedor vendedor = converterParaVendedor(dto);
-            vendedorRepository.save(vendedor);
-
-            Venda venda = converterParaVenda(dto, cliente, produto, vendedor);
-            vendaRepository.save(venda);
-        }
-    }
-
-    // Versão reativa: recebe um Flux de DTOs e realiza as operações de persistência
     public Mono<Long> salvarDadosDoArquivo(Flux<DadosArquivoDTO> listaDtosFlux) {
         return listaDtosFlux
-                .flatMap(dto -> Mono.fromCallable(() -> {
-                    Cliente cliente = converterParaCliente(dto);
-                    clienteRepository.save(cliente);
-
-                    Produto produto = converterParaProduto(dto);
-                    produtoRepository.save(produto);
-
-                    Vendedor vendedor = converterParaVendedor(dto);
-                    vendedorRepository.save(vendedor);
-
-                    Venda venda = converterParaVenda(dto, cliente, produto, vendedor);
-                    vendaRepository.save(venda);
-
-                    return 1L;
-                }).subscribeOn(Schedulers.boundedElastic()))
-                .reduce(0L, Long::sum);
+                .flatMap(dto -> 
+                    Mono.zip(
+                        clienteRepository.save(converterParaCliente(dto)),
+                        produtoRepository.save(converterParaProduto(dto)),
+                        vendedorRepository.save(converterParaVendedor(dto))
+                    ).flatMap(tuple -> {
+                        Venda venda = converterParaVenda(dto);
+                        return vendaRepository.save(venda);
+                    })
+                )
+                .subscribeOn(Schedulers.boundedElastic())
+                .count();
     }
 
     private Cliente converterParaCliente(DadosArquivoDTO dto) {
@@ -123,7 +97,7 @@ public class ProcessamentoVendasService {
         return v;
     }
 
-    private Venda converterParaVenda(DadosArquivoDTO dto, Cliente cliente, Produto produto, Vendedor vendedor) {
+    private Venda converterParaVenda(DadosArquivoDTO dto) {
         Venda venda = new Venda();
 
         if (dto.idTransacao() == null || dto.idTransacao().trim().isEmpty()) {
@@ -145,13 +119,9 @@ public class ProcessamentoVendasService {
         venda.setStatusEntrega(dto.statusEntrega());
         venda.setTempoEntregaDias(dto.tempoEntregaDias());
 
-        if (cliente == null || produto == null || vendedor == null) {
-            throw new IllegalArgumentException("Cliente, Produto e Vendedor não podem ser nulos");
-        }
-
-        venda.setCliente(cliente);
-        venda.setProduto(produto);
-        venda.setVendedor(vendedor);
+        venda.setClienteId(dto.clienteId());
+        venda.setProdutoId(dto.produtoId());
+        venda.setVendedorId(dto.vendedorId());
 
         return venda;
     }

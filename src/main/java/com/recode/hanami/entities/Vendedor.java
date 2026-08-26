@@ -1,15 +1,14 @@
 package com.recode.hanami.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
 @Table(name = "vendedores")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Vendedor {
 
     @Id
-    @Column(name = "vendedor_id")
+    @Column("vendedor_id")
     private String id;
 
     public Vendedor() {}
