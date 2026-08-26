@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 @Service
 public class ProcessamentoVendasService {
@@ -36,18 +35,18 @@ public class ProcessamentoVendasService {
 
     public Mono<Long> salvarDadosDoArquivo(Flux<DadosArquivoDTO> listaDtosFlux) {
         return listaDtosFlux
-                .flatMap(dto -> 
-                    Mono.zip(
-                        clienteRepository.save(converterParaCliente(dto)),
-                        produtoRepository.save(converterParaProduto(dto)),
-                        vendedorRepository.save(converterParaVendedor(dto))
-                    ).flatMap(tuple -> {
-                        Venda venda = converterParaVenda(dto);
-                        return vendaRepository.save(venda);
-                    })
+                .collectList()
+                .flatMapMany(Flux::fromIterable)
+                .concatMap(dto ->
+                        clienteRepository.save(converterParaCliente(dto))
+                        .zipWhen(c -> produtoRepository.save(converterParaProduto(dto)))
+                        .zipWhen(
+                                tuple -> vendedorRepository.save(converterParaVendedor(dto))
+                        )
+                        .flatMap(tuple -> vendaRepository.save(converterParaVenda(dto)))
                 )
-                .subscribeOn(Schedulers.boundedElastic())
-                .count();
+                .collectList()
+                .flatMap(vendas -> Mono.just((long) vendas.size()));
     }
 
     private Cliente converterParaCliente(DadosArquivoDTO dto) {
