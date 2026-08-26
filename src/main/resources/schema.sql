@@ -52,15 +52,8 @@ CREATE TABLE IF NOT EXISTS vendas (
         ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP INDEX IF EXISTS idx_vendas_cliente_id ON vendas;
-CREATE INDEX idx_vendas_cliente_id ON vendas (cliente_id);
-
-DROP INDEX IF EXISTS idx_vendas_produto_id ON vendas;
-CREATE INDEX idx_vendas_produto_id ON vendas (produto_id);
-
-DROP INDEX IF EXISTS idx_vendas_vendedor_id ON vendas;
-CREATE INDEX idx_vendas_vendedor_id ON vendas (vendedor_id);
-
-DROP INDEX IF EXISTS idx_vendas_data_venda ON vendas;
-CREATE INDEX idx_vendas_data_venda ON vendas (data_venda);
+-- CREATE INDEX idx_vendas_cliente_id ON vendas (cliente_id);
+-- CREATE INDEX idx_vendas_produto_id ON vendas (produto_id);
+-- CREATE INDEX idx_vendas_vendedor_id ON vendas (vendedor_id);
+-- CREATE INDEX idx_vendas_data_venda ON vendas (data_venda);
 
