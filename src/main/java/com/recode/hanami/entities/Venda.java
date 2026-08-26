@@ -100,13 +100,17 @@ public class Venda {
     public String getVendedorId() { return vendedorId; }
     public void setVendedorId(String vendedorId) { this.vendedorId = vendedorId; }
 
-    public Cliente getCliente() { return null; }
-    public void setCliente(Cliente cliente) { }
+    private transient Cliente cliente;
+    private transient Produto produto;
+    private transient Vendedor vendedor;
 
-    public Produto getProduto() { return null; }
-    public void setProduto(Produto produto) { }
+    public Cliente getCliente() { return cliente; }
+    public void setCliente(Cliente cliente) { this.cliente = cliente; }
 
-    public Vendedor getVendedor() { return null; }
-    public void setVendedor(Vendedor vendedor) { }
+    public Produto getProduto() { return produto; }
+    public void setProduto(Produto produto) { this.produto = produto; }
+
+    public Vendedor getVendedor() { return vendedor; }
+    public void setVendedor(Vendedor vendedor) { this.vendedor = vendedor; }
 
 }

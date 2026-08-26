@@ -4,7 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.recode.hanami.dto.*;
 import com.recode.hanami.entities.Venda;
+import com.recode.hanami.entities.Cliente;
+import com.recode.hanami.entities.Produto;
+import com.recode.hanami.entities.Vendedor;
 import com.recode.hanami.repository.VendaRepository;
+import com.recode.hanami.repository.ClienteRepository;
+import com.recode.hanami.repository.ProdutoRepository;
+import com.recode.hanami.repository.VendedorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -21,16 +27,25 @@ public class RelatorioService {
     private static final Logger logger = LoggerFactory.getLogger(RelatorioService.class);
 
     private final VendaRepository vendaRepository;
+    private final ClienteRepository clienteRepository;
+    private final ProdutoRepository produtoRepository;
+    private final VendedorRepository vendedorRepository;
     private final CalculadoraMetricasService calculadoraService;
     private final CalculosDemografiaRegiao calculosDemografiaRegiao;
     private final PdfService pdfService;
     private final ObjectMapper objectMapper;
 
     public RelatorioService(VendaRepository vendaRepository,
+                            ClienteRepository clienteRepository,
+                            ProdutoRepository produtoRepository,
+                            VendedorRepository vendedorRepository,
                             CalculadoraMetricasService calculadoraService,
                             CalculosDemografiaRegiao calculosDemografiaRegiao,
                             PdfService pdfService) {
         this.vendaRepository = vendaRepository;
+        this.clienteRepository = clienteRepository;
+        this.produtoRepository = produtoRepository;
+        this.vendedorRepository = vendedorRepository;
         this.calculadoraService = calculadoraService;
         this.calculosDemografiaRegiao = calculosDemografiaRegiao;
         this.pdfService = pdfService;
@@ -58,14 +73,35 @@ public class RelatorioService {
     }
 
     public Mono<RelatorioCompletoDTO> gerarRelatorioCompleto() {
-        logger.info("Gerando relatório completo");
-        return vendaRepository.findAll().collectList().map(todasVendas -> {
-            List<Venda> vendasComRelacoes = todasVendas;
-            List<AnaliseProdutoDTO> analiseProdutos = gerarAnaliseProdutos(vendasComRelacoes);
-            ResumoVendasDTO resumoVendas = gerarResumoVendas(todasVendas);
-            Map<String, MetricasRegiaoDTO> desempenhoRegional = calculosDemografiaRegiao.calcularMetricasPorRegiao(todasVendas);
-            return new RelatorioCompletoDTO(LocalDateTime.now(), gerarMetricasFinanceiras(todasVendas), analiseProdutos, resumoVendas, desempenhoRegional);
-        });
+        logger.info("Gerando relatório completo (batch-fetch)");
+        return vendaRepository.findAll().collectList()
+                .flatMap(vendas -> {
+                    Set<String> clienteIds = vendas.stream().map(Venda::getClienteId).filter(Objects::nonNull).collect(Collectors.toSet());
+                    Set<String> produtoIds = vendas.stream().map(Venda::getProdutoId).filter(Objects::nonNull).collect(Collectors.toSet());
+                    Set<String> vendedorIds = vendas.stream().map(Venda::getVendedorId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+                    Mono<Map<String, Cliente>> clientesMono = clienteRepository.findAllById(clienteIds).collectMap(Cliente::getId);
+                    Mono<Map<String, Produto>> produtosMono = produtoRepository.findAllById(produtoIds).collectMap(Produto::getId);
+                    Mono<Map<String, Vendedor>> vendedoresMono = vendedorRepository.findAllById(vendedorIds).collectMap(Vendedor::getId);
+
+                    return Mono.zip(clientesMono, produtosMono, vendedoresMono)
+                            .map(tuple -> {
+                                Map<String, Cliente> clientes = tuple.getT1();
+                                Map<String, Produto> produtos = tuple.getT2();
+                                Map<String, Vendedor> vendedores = tuple.getT3();
+
+                                vendas.forEach(v -> {
+                                    if (v.getClienteId() != null) v.setCliente(clientes.get(v.getClienteId()));
+                                    if (v.getProdutoId() != null) v.setProduto(produtos.get(v.getProdutoId()));
+                                    if (v.getVendedorId() != null) v.setVendedor(vendedores.get(v.getVendedorId()));
+                                });
+
+                                List<AnaliseProdutoDTO> analiseProdutos = gerarAnaliseProdutos(vendas);
+                                ResumoVendasDTO resumoVendas = gerarResumoVendas(vendas);
+                                Map<String, MetricasRegiaoDTO> desempenhoRegional = calculosDemografiaRegiao.calcularMetricasPorRegiao(vendas);
+                                return new RelatorioCompletoDTO(LocalDateTime.now(), gerarMetricasFinanceiras(vendas), analiseProdutos, resumoVendas, desempenhoRegional);
+                            });
+                });
     }
 
     public Mono<Map<String, Double>> gerarMetricasFinanceirasMap() {
